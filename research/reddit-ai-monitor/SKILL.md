@@ -23,7 +23,9 @@ Reddit AI Monitor
 
 被動查詢（手動執行）：
 
+```bash
 python ~/.hermes/skills/my-hermes-skills/research/reddit-ai-monitor/scripts/fetch_and_report.py
+```
 
 自定義參數：
 
@@ -32,15 +34,19 @@ python ~/.hermes/skills/my-hermes-skills/research/reddit-ai-monitor/scripts/fetc
 
 範例：
 
+```bash
 python ~/.hermes/skills/my-hermes-skills/research/reddit-ai-monitor/scripts/fetch_and_report.py --limit 20 --sort top
+```
 
 可用於 Cron 自動化（示意）：
 
-cronjob create \
+```bash
+/hermes cronjob create \
   --prompt "使用 reddit-ai-monitor skill 抓取 Reddit AI 熱門討論並生成報告" \
   --schedule "0 */6 * * *" \
   --name "reddit-ai-daily" \
   --skills "reddit-ai-monitor"
+```
 
 監控的 Subreddits（與說明）
 
@@ -54,12 +60,14 @@ cronjob create \
 
 1. 執行腳本（被動查詢）：
 
-python ~/.hermes/skills/research/reddit-ai-monitor/scripts/fetch_and_report.py
+```bash
+python ~/.hermes/skills/my-hermes-skills/research/reddit-ai-monitor/scripts/fetch_and_report.py
+```
 
 2. 確認輸出包含：
-- 對應 5 個 subreddit 的 posts（每個 sub 會抓取指定 --limit 篇，預設 10）。
-- 熱門 Top 5 列表（依熱度分數排序的摘要）。
-- 主題分類段落（例如：模型發布、工具應用、研究論文、AI Agents、新鮮事）。
+   - 對應 5 個 subreddit 的 posts（每個 sub 會抓取指定 --limit 篇，預設 10）。
+   - 熱門 Top 5 列表（依熱度分數排序的摘要）。
+   - 主題分類段落（例如：模型發布、工具應用、研究論文、AI Agents、新鮮事）。
 
 3. 若執行時收到錯誤或無輸出，查看 stderr 是否有類似「未能抓到任何 posts，Reddit 可能暫時封鎖了無 cookie 請求」的警告。
 
