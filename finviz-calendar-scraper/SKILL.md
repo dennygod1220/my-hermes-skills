@@ -26,7 +26,7 @@ Scrape US stock market events from finviz.com calendar — earnings, Fed/FOMC, e
 
 ## Data Source
 
-**URL**: `https://finviz.com/calendar.ashx`
+**Primary URL**: `https://finviz.com/calendar.ashx`
 
 finviz.com embeds its entire calendar as a JSON array inside a `<script>` tag:
 ```html
@@ -37,7 +37,33 @@ finviz.com embeds its entire calendar as a JSON array inside a `<script>` tag:
 
 It is NOT an AJAX API — the data is in the HTML on first load. This makes it scrapable without Selenium.
 
-## Core Extraction Pattern
+However, finviz's page structure changes periodically. **The embedded JSON extraction may fail** (return empty `[]`). In that case, fall back to the **browser tool** to scrape the rendered tables directly.
+
+### Fallback: Browser Tool
+
+When web_extract + JSON parsing fails:
+
+1. **Economic data**: Navigate to `https://finviz.com/calendar/economic?dateFrom=YYYY-MM-DD` and extract rows from the rendered table using `browser_console` JS injection:
+   ```javascript
+   // Extract economic table rows
+   const tables = document.querySelectorAll('table');
+   const econTable = tables[tables.length - 2]; // second-to-last table
+   const rows = econTable.querySelectorAll('tr');
+   // parse cells: time, event, impact, for, actual, expected, prior
+   ```
+
+2. **Earnings data**: Navigate to `https://finviz.com/calendar/earnings?dateFrom=YYYY-MM-DD` and extract rows:
+   ```javascript
+   // Extract earnings table rows
+   const tables = document.querySelectorAll('table');
+   const earningsTable = tables[tables.length - 1]; // last table
+   const rows = earningsTable.querySelectorAll('tr');
+   // parse cells: ticker, company, time (BMO/AMC), mktCap, epsEst, ...
+   ```
+
+3. **View more content**: If the table is truncated, scroll down with `browser_scroll(direction='down')` then extract again.
+
+### Primary Method: Core Extraction Pattern (embedded JSON)
 
 ```python
 import requests

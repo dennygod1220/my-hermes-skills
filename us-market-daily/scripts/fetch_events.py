@@ -6,7 +6,11 @@
   - 財報 EPS 預估：yfinance
 """
 import sys
-sys.path.insert(0, "/root/.hermes/skills/my-hermes-skills/us-market-daily/scripts")
+import os
+# Resolve the script directory relative to the skill root
+_skill_dir = os.path.dirname(os.path.abspath(__file__))
+if _skill_dir not in sys.path:
+    sys.path.insert(0, _skill_dir)
 from config import WATCHED_TICKERS, LOG_FILE
 import requests
 import yfinance as yf
@@ -184,6 +188,24 @@ def fetch_economic_data(date_str: str) -> list:
           Redbook、每週ADP、續領失業金。
     只保留 Medium(2) 或 High(3) 重要性的項目。
     """
+
+    return _fetch_economic_data_impl(date_str, days=1)
+
+
+def fetch_weekly_highlights(date_str: str) -> list:
+    """
+    抓取本週（今天起往後 7 天）的高重要性經濟數據，
+    用於「本週重頭戲」區塊。
+    """
+    return _fetch_economic_data_impl(date_str, days=7)
+
+
+def _fetch_economic_data_impl(start_date_str: str, days: int = 1) -> list:
+    """
+    共用實作：抓取 finviz 行事曆中指定天數範圍內的經濟數據。
+    days=1 → 回傳今天（含前一天傍晚）
+    days=7 → 回傳整週
+    """
     url = "https://finviz.com/calendar.ashx"
     try:
         resp = requests.get(url, headers=HEADERS, timeout=15)
@@ -199,9 +221,6 @@ def fetch_economic_data(date_str: str) -> list:
     # Fed Balance Sheet → 已移至 fetch_fed_events
     # 嚴格的黑名單 — 這些不是真正的「宏觀經濟數據」
     skipped_tickers = {
-        # Fed 相關（已由 fetch_fed_events 處理）
-        "FDTR",
-        "UNITEDSTACENBANBALSH",
         # 國債標售
         "UNITEDSTA3MONBILYIE",
         "UNITEDSTA6MONBILYIE",
@@ -218,7 +237,17 @@ def fetch_economic_data(date_str: str) -> list:
         "UNITEDSTAREDIND",
         "USAAECW",
         "UNITEDSTANATGASSTOCH",
+        # Fed Balance Sheet — 保留在經濟數據中，因為影響市場
+        # (已從此清單移除，讓它出現在經濟數據中)
     }
+
+    # 解析起始日期，建立日期範圍
+    try:
+        start_dt = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except Exception:
+        start_dt = date.today()
+    # days=1 → 只回傳今天；days=7 → 今天起往後 6 天（共 7 天）
+    end_dt = start_dt + __import__('datetime').timedelta(days=days - 1)
 
     for e in entries:
         parsed = _parse_finviz_entry(e)
@@ -231,7 +260,17 @@ def fetch_economic_data(date_str: str) -> list:
             continue
         if dt_et is None:
             continue
-        if not _date_in_window(dt_et, date_str):
+
+        # 檢查是否在日期範圍內（含前一天 16:00 之後）
+        event_date = dt_et.date()
+        in_range = False
+        if start_dt <= event_date <= end_dt:
+            in_range = True
+        # 前一天 16:00 ET 之後的事件也納入
+        prior_start = start_dt - __import__('datetime').timedelta(days=1)
+        if event_date == prior_start and dt_et.hour >= 16:
+            in_range = True
+        if not in_range:
             continue
 
         # Fed Balance Sheet 永遠保留（imp=1 也留）
@@ -242,6 +281,7 @@ def fetch_economic_data(date_str: str) -> list:
         importance_label = {1: "Low", 2: "Medium", 3: "High"}.get(imp, "Low")
 
         results.append({
+            "date_et":     parsed["date_et"],
             "time_et":     parsed["time_et"],
             "event":       parsed["event"],
             "importance":  importance_label,
@@ -249,8 +289,8 @@ def fetch_economic_data(date_str: str) -> list:
             "forecast":    parsed["forecast"],
         })
 
-    results.sort(key=lambda x: x["time_et"])
-    logger.info("fetch_economic_data: found %d items for %s", len(results), date_str)
+    results.sort(key=lambda x: (x.get("date_et", ""), x.get("time_et", "")))
+    logger.info("_fetch_economic_data_impl: found %d items for %s (%d days)", len(results), start_date_str, days)
     return results
 
 
@@ -341,12 +381,14 @@ def fetch_all_events() -> dict:
     date_str = get_financial_date_et()
     fed    = fetch_fed_events(date_str)
     econ   = fetch_economic_data(date_str)
+    weekly = fetch_weekly_highlights(date_str)  # 整週高重要性數據
     earn   = fetch_earnings(WATCHED_TICKERS)
 
     return {
         "date":          date_str,
         "fed_events":    fed,
         "economic_data": econ,
+        "weekly_data":   weekly,
         "earnings":      earn,
     }
 

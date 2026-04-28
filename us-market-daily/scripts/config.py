@@ -24,7 +24,7 @@ WATCHED_TICKERS = [
 ]
 
 # 讀取環境變數，可被環境變數覆寫
-DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID", "1496298887714046216")
+DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID", "1496787470652674199")
 
 # 日誌檔案路徑
 LOG_FILE = "/tmp/us_market_daily.log"
