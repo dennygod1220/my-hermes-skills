@@ -110,6 +110,7 @@ After initial analysis (Step 1-5a), the user may report entering a trade. This s
 - Flag if SL is too tight for 3-min chart noise — typical SL needs 10-25pt room depending on EMA spread
 - Flag if chasing (entering after big move) vs. pullback entry — pullbacks are preferred
 - Provide 2-3 SL placement options (tight/medium/conservative) with trade-offs for each
+- **⚠️ Exit monitoring — structural thesis break**: Throughout the position's life, track whether the EMA structure that justified the entry is intact. If the entry thesis was "price above all EMAs → long" and price later breaks below ALL three EMAs, the thesis is invalidated. **Advise manual exit before hard SL** — the thesis break IS the exit signal; the hard SL is just a backup. Know the specific structural thesis behind each entry so you can detect its invalidation.
 
 **Phase B — SL Adjustment:**
 - User adjusts SL — confirm new level is technically sound
