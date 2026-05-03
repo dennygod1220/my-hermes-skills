@@ -1,3 +1,10 @@
+---
+name: us-market-daily
+description: "US market events — daily Discord push of Fed/FOMC, earnings, economic data via finviz + yfinance. Absorbed finviz-calendar-scraper."
+umbrella: true
+absorbed: [finviz-calendar-scraper]
+---
+
 # US Market Daily — 美股事件每日 Discord 推送
 
 ## 概述
@@ -147,3 +154,15 @@ cron job ID：
 - Discord home channel ID: `1496787470652674199`（DM 頻道，使用 bare "discord" target 發送）
 - 傍晚格式會自動過濾已過期的台灣時間事件，只顯示即將到來的
 - 週間重頭戲會自動去重（相同 event name 只顯示一次）
+
+## 資料來源：Finviz Calendar 解析
+
+市場事件資料從 finviz.com 嵌入式 JSON 解析取得。詳細 extraction code、timezone handling 與 edge cases 請見 `references/finviz-extraction.md`。
+
+### 關鍵注意事項
+
+- **Timezone 陷阱（IJC 問題）**：Initial Jobless Claims 20:30 ET = 00:30 UTC+1d，早報時間可能跨 UTC 日
+- **Fed 事件只能用 ticker whitelist**：`FDTR` + `UNITEDSTACENBANBALSH` 唯二，不能用字串比對 "Fed"
+- **經濟數據 blacklist**：國債拍賣、區域 Fed 指數等 noise ticker 需過濾
+- **重要性門檻**：經濟數據只看 importance >= 2（Fed 資產負債表例外）
+- **JSON 解析失敗後備**：fallback 到 browser tool 直接從 HTML table 抓資料
