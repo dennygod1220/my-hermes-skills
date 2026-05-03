@@ -93,6 +93,151 @@ Discord 發送格式建議
 附註
 
 - 建議腳本使用 curl 搭配瀏覽器型的 User-Agent（減少被誤判為 bot 的機會）並加上 Accept: application/json，以提高取得 .json 的成功率。
-- 若遇到 JSON 回傳失敗，可參考或結合 reddit-cookie-json-fallback 類似的備援流程（取得 cookie 後再帶入 curl 請求）。
+
+---
+
+## Mode A: Real-Time News Feed Monitoring
+
+**Use when**: The user asks for "today's", "latest", or "real-time" AI/tech news from Reddit communities.
+
+### Target Subreddits (by topic)
+
+- **General AI**: r/artificial, r/MachineLearning, r/singularity
+- **Open Source LLMs**: r/LocalLLaMA, r/LocalLLM
+- **Specific Companies**: r/OpenAI, r/AnthropicAI, r/googleai
+- **Applications**: r/CodingAI, r/AIAlignment
+
+### Workflow
+
+1. **Access the `/new/` feed** (not hot!) — `/new/` surfaces truly current posts, while "hot" surfaces older popular ones.
+   ```
+   https://www.reddit.com/r/SUBNAME/new/
+   ```
+
+2. **Filter by timestamp** — Accept "X hr ago" / "X min ago" (within 24h). Reject "Xd ago" where X ≥ 2.
+
+3. **Quick-scan post titles & metadata** — Look for high upvotes, comment counts, flairs (Discussion/News/Resources), and topic keywords.
+
+4. **Drill into 2-3 candidates** — Read post body, top 3-5 comments, controversial viewpoints, external links.
+
+5. **Cross-reference across subreddits** — Note which community caught it first, compare sentiment/angles.
+
+### Tool Usage Pattern
+
+```python
+# Sequence:
+1. browser_navigate("https://www.reddit.com/r/artificial/new/")
+2. browser_snapshot(full=false)  # scan timestamps + titles
+3. For 2-3 promising posts:
+   browser_navigate(post_url)
+   browser_snapshot(full=false)  # extract key content
+4. Repeat for r/MachineLearning/new/, r/LocalLLaMA/new/, etc.
+```
+
+### Time Ambiguity Warning
+
+- "6 hr ago" = acceptable for today
+- "1d ago" = borderline; verify by navigating into the post
+- "3d ago" = explicitly NOT today, even if topic is hot
+- **Never assume** — always read the timestamp from the page
+
+---
+
+## Mode B: Ad-Hoc Sentiment Research
+
+**Use when**: The user asks to "check what Reddit thinks about" a specific topic, company, or model.
+
+### Workflow
+
+1. **Search across 3-5 relevant subreddits** using Reddit's search:
+   ```
+   https://www.reddit.com/r/SUBNAME/search/?q=TOPIC&sort=top&t=month
+   ```
+
+2. **Collect 5-10 top threads** per subreddit — sort by "top" for the most engaged discussions.
+
+3. **Extract community consensus** from:
+   - Top-comment sentiment (positive/negative/mixed)
+   - Controversial comments (sorted by controversial)
+   - Recurring themes across different subreddits
+
+4. **Summarize** as:
+   - **Predominant view**: what most commenters agree on
+   - **Skeptical view**: contrarian or critical takes
+   - **Technical details**: benchmarks, comparisons, specific claims
+   - **Notable users**: recognizable community members weighing in
+
+### Adaptation for Non-AI Topics
+
+Same workflow, different subreddits:
+- **Programming**: r/programming, r/coding, r/webdev
+- **Tech News**: r/technology, r/Futurology
+- **Science**: r/science, r/Physics, r/biology
+
+---
+
+## Fallback: Cookie + JSON Endpoint (When Bot-Protection Blocks)
+
+**Use when**: Reddit pages or the browser get blocked by bot checks / Cloudflare / network security.
+
+### Workflow
+
+1. **Extract the canonical post permalink** — prefer full thread URL, not share URL.
+   Example: `https://www.reddit.com/r/sub/comments/postid/title/`
+
+2. **Fetch the JSON endpoint** instead of rendering the page:
+   ```
+   https://www.reddit.com/r/sub/comments/postid/title/.json?raw_json=1&sort=top&limit=50
+   ```
+
+3. **Send user-provided cookie jar with curl** (Netscape cookie file format from Cookie-Editor):
+   ```bash
+   curl -sS -L -A 'Mozilla/5.0 ...' -b /tmp/cookies.txt URL
+   ```
+   - Use a temp file; do NOT print cookie contents back to user.
+   - Treat cookies as sensitive credentials — never echo or store in logs.
+
+4. **Parse the JSON** — Element `[0]` is the post listing; `[1]` is the comments listing. Recursively walk `replies` trees for nested comments.
+
+5. **Summarize** — post title/selftext, top-comment consensus, actionable technical details.
+
+### Practical Parsing Notes
+
+- If the response is HTML instead of JSON, the request likely hit a block page.
+- If the cookie jar is invalid/expired, Reddit may still return a block page.
+- A successful JSON response starts with a JSON array including `kind: "Listing"` objects.
+
+### When Browser Is Blocked
+
+- Do NOT keep hammering the browser UI; the JSON endpoint is more reliable.
+- If the Reddit JSON endpoint is also blocked, the API is effectively inaccessible.
+
+---
+
+## Quality Checklist
+
+- [ ] Checked at least 3 different subreddit "new" feeds (for Mode A) or search results (for Mode B)
+- [ ] Verified each "today" item has timestamp ≤ 24 hours (Mode A)
+- [ ] Read post body (not just title) for context
+- [ ] Scanned top comments for community reaction
+- [ ] Noted if topic repeats across subreddits
+- [ ] Excluded promotional/ad content
+- [ ] Provided direct post URLs for user verification
+- [ ] Differentiated "news" vs "discussion" vs "question" types
+
+## Example Output Structure (Mode A)
+
+```
+## 📊 Today's Reddit AI Discussion
+
+### 🔥 Top Today: GPT-5.5 Benchmark Controversy
+**r/artificial | 2 hr ago | 150 upvotes | 37 comments**
+- OpenAI claims GPT-5.5 is "strongest agentic coding model"
+- LiveBench independent test: GPT-5.5 scores 56.67 vs GPT-5.4's 70.00
+- Community reaction: skepticism, calls for transparent benchmarking
+[Link to thread]
+```
+
+---
 
 由 Hermes Agent 提供與維護。若需擴充（如增量追蹤、關鍵字通知、跨帳號負載分流等），可在此 skill 基礎上延伸。

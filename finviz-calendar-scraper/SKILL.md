@@ -65,39 +65,12 @@ When web_extract + JSON parsing fails:
 
 ### Primary Method: Core Extraction Pattern (embedded JSON)
 
+finviz embeds calendar data inside a `<script>` tag as JSON. The HTML tables are empty. See `references/html-json-extraction.md` for the detailed extraction technique with alternative approaches when BeautifulSoup fails.
+
+The standard extraction approach:
+
 ```python
-import requests
-import json
-import re
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-}
-
-def _extract_finviz_entries(html: str) -> list:
-    """
-    Find 'entries' JSON array in finviz HTML and return as a Python list.
-    Uses bracket-counting to find the matching ] for the array.
-    """
-    start = html.find('"entries":[')
-    if start == -1:
-        return []
-
-    depth = 0
-    i = start + len('"entries":[')
-    while i < len(html):
-        ch = html[i]
-        if ch == '[':
-            depth += 1
-        elif ch == ']':
-            if depth == 0:
-                break
-            depth -= 1
-        i += 1
-
-    json_str = '[' + html[start + len('"entries":['):i] + ']'
-    return json.loads(json_str)
+from your_script import extract_finviz_entries  # see references/html-json-extraction.md
 ```
 
 ## Standardizing Entries
